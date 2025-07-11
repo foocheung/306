@@ -69,7 +69,7 @@ Each `cellranger multi` output was then passed into a sample-specific custom R s
 
 ### Quality Control Tools
 
-To further support validation and reproducibility, two in-house R/Shiny tools were developed:
+To further support validation and reproducibility, two in-house R packages/Shiny tools were developed:
 
 1. **[barcode\_overlapper](https://github.com/foocheung/barcodeoverlapper)**
 
