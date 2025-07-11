@@ -1,0 +1,5 @@
+
+data_path: "/hpcdata/chi/PROJECTS_Archive/2022_CHI_PROPOSALS/Manthiram_Covid-tonsil_CHI-306/306_4_MERGED_RUN3/aggr_1/outs/count/filtered_feature_bc_ma
+trix.h5"
+lanes: [1, 2, 3, 4, 9, 10, 11, 12, 17, 18, 19, 20]
+output_prefix: "306_4_release/B"

@@ -1,0 +1,99 @@
+
+library(stringr)
+library(dplyr)
+library(tidyseurat)
+
+
+b <- b %>%
+    mutate(sCall2 = case_when(
+        sCALL == "T124" ~ "T125",
+        sCALL == "T125" ~ "T125",
+        str_detect(sCALL, "^T124\\+T125$") ~ "T124+T125",
+        str_detect(sCALL, "^T125\\+T124$") ~ "T124+T125",
+        TRUE ~ sCALL
+    )) 
+    # %>%
+    # select(Lane, sCALL, sDROPLET.TYPE, sCall2) %>%
+    # unique() %>% filter(Lane >= 5 & Lane <=8)
+
+
+
+
+##Code above Adds a new column sCall2 to the dataset by applying conditional logic.
+
+##case_when(...): This function evaluates multiple conditions and assigns values based on which condition is true.
+##sCALL == "T124" ~ "T125": If sCALL is "T124", set sCall2 to "T125".
+##sCALL == "T125" ~ "T125": If sCALL is "T125", set sCall2 to "T125".
+##str_detect(sCALL, "^T124\\+T125$") ~ "T124+T125": If sCALL is exactly "T124+T125", set sCall2 to "T124+T125".
+##str_detect(sCALL, "^T125\\+T124$") ~ "T124+T125": If sCALL is exactly "T125+T124", set sCall2 to "T124+T125".
+##TRUE ~ sCALL: For all other cases, set sCall2 to the value of sCALL.
+
+
+
+# A tibble: 63 × 4
+   Lane  sCALL     sDROPLET.TYPE sCall2   
+   <chr> <chr>     <chr>         <chr>    
+ 1 5     T124      SNG           T125     
+ 2 5     T50       SNG           T50      
+ 3 5     T124+T125 DBL           T124+T125
+ 4 5     T103      SNG           T103     
+ 5 5     T103+T124 DBL           T103+T124
+ 6 5     T10       SNG           T10      
+ 7 5     T124+T50  DBL           T124+T50 
+ 8 5     T125      SNG           T125     
+ 9 5     AMB       AMB           AMB      
+10 5     T10+T124  DBL           T10+T124 
+11 5     T10+T103  DBL           T10+T103 
+12 5     T125+T124 DBL           T124+T125
+13 5     T103+T50  DBL           T103+T50 
+14 5     T10+T50   DBL           T10+T50  
+15 5     T103+T125 DBL           T103+T125
+16 5     T125+T50  DBL           T125+T50 
+17 6     T103      SNG           T103     
+18 6     T125      SNG           T125     
+19 6     T124+T50  DBL           T124+T50 
+20 6     T124      SNG           T125     
+21 6     T103+T124 DBL           T103+T124
+22 6     T124+T125 DBL           T124+T125
+23 6     T125+T124 DBL           T124+T125
+24 6     T10       SNG           T10      
+25 6     T50       SNG           T50      
+26 6     AMB       AMB           AMB      
+27 6     T103+T50  DBL           T103+T50 
+28 6     T10+T103  DBL           T10+T103 
+29 6     T10+T124  DBL           T10+T124 
+30 6     T10+T50   DBL           T10+T50  
+31 6     T103+T125 DBL           T103+T125
+32 6     T10+T125  DBL           T10+T125 
+33 6     T125+T50  DBL           T125+T50 
+34 7     T50       SNG           T50      
+35 7     T10+T124  DBL           T10+T124 
+36 7     T124      SNG           T125     
+37 7     T124+T125 DBL           T124+T125
+38 7     T10       SNG           T10      
+39 7     T103      SNG           T103     
+40 7     T125      SNG           T125     
+41 7     AMB       AMB           AMB      
+42 7     T125+T124 DBL           T124+T125
+43 7     T103+T124 DBL           T103+T124
+44 7     T103+T50  DBL           T103+T50 
+45 7     T124+T50  DBL           T124+T50 
+46 7     T10+T103  DBL           T10+T103 
+47 7     T10+T50   DBL           T10+T50  
+48 7     T103+T125 DBL           T103+T125
+49 7     T125+T50  DBL           T125+T50 
+50 7     T10+T125  DBL           T10+T125 
+51 8     AMB       AMB           AMB      
+52 8     T103+T124 DBL           T103+T124
+53 8     T125      SNG           T125     
+54 8     T103      SNG           T103     
+55 8     T124+T125 DBL           T124+T125
+56 8     T124      SNG           T125     
+57 8     T50       SNG           T50      
+58 8     T125+T124 DBL           T124+T125
+59 8     T124+T50  DBL           T124+T50 
+60 8     T10+T124  DBL           T10+T124 
+61 8     T103+T50  DBL           T103+T50 
+62 8     T103+T125 DBL           T103+T125
+63 8     T10       SNG           T10  
+

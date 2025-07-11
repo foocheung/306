@@ -1,0 +1,3 @@
+data_path: "/hpcdata/chi/PROJECTS_Archive/2022_CHI_PROPOSALS/Manthiram_Covid-tonsil_CHI-306/NEW_DATA_9_sept_2023/230908_A00941_1368_AHKVGVDSX2/RUN_23_306_3/RUN/multi_config_7/outs/per_sample_outs/multi_config_7/count/sample_filtered_feature_bc_matrix.h5"
+lanes: [7]
+output_prefix: "306_3_release/7"
