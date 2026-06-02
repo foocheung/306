@@ -1,0 +1,266 @@
+---
+title: "Arcas-HLA Typing Report"
+author: "Foo Cheung"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    theme: flatly
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+---
+
+```{r setup}
+library(jsonlite)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+
+input_dir <- "arcasHLA_results"
+out_dir <- "arcasHLA_report_outputs"
+
+dir.create(out_dir, showWarnings = FALSE)
+
+files <- list.files(
+  input_dir,
+  pattern = "genotype.json$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+
+stopifnot(length(files) > 0)
+```
+
+# Overview
+
+Arcas-HLA was used to infer HLA genotypes from paired-end bulk RNA-seq FASTQ files. The analysis focused on the following HLA loci:
+
+```{r}
+genes_requested <- c("A", "B", "C", "DQA1", "DQB1", "DRB1")
+genes_requested
+```
+
+These results are intended to support downstream interpretation of SARS-CoV-2-responsive TCRs. Since the published SARS-CoV-2 TCR databases are primarily focused on CD8 T cells, the most important HLA loci for interpretation are HLA-A, HLA-B, and HLA-C.
+
+# Load Arcas-HLA genotype calls
+
+```{r}
+hla_df <- map_dfr(files, function(f) {
+  sample <- basename(dirname(f))
+  dat <- fromJSON(f)
+
+  map_dfr(names(dat), function(gene) {
+    alleles <- dat[[gene]]
+
+    tibble(
+      Sample = sample,
+      Gene = gene,
+      Allele1 = ifelse(length(alleles) >= 1, alleles[1], NA),
+      Allele2 = ifelse(length(alleles) >= 2, alleles[2], NA),
+      Genotype = paste(
+        ifelse(length(alleles) >= 1, alleles[1], NA),
+        ifelse(length(alleles) >= 2, alleles[2], NA),
+        sep = " / "
+      )
+    )
+  })
+})
+
+hla_df <- hla_df %>%
+  mutate(
+    Sample = str_replace(Sample, "_R1_001$", ""),
+    Gene = factor(Gene, levels = genes_requested)
+  ) %>%
+  arrange(Sample, Gene)
+
+write_csv(hla_df, file.path(out_dir, "arcasHLA_genotype_long.csv"))
+```
+
+# HLA genotype table
+
+```{r}
+hla_wide <- hla_df %>%
+  select(Sample, Gene, Genotype) %>%
+  pivot_wider(
+    names_from = Gene,
+    values_from = Genotype,
+    names_prefix = "HLA_"
+  ) %>%
+  arrange(Sample)
+
+write_csv(hla_wide, file.path(out_dir, "arcasHLA_genotype_wide.csv"))
+
+hla_wide %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)
+```
+
+# Class I HLA calls for CD8 TCR interpretation
+
+```{r}
+hla_classI <- hla_wide %>%
+  select(Sample, HLA_A, HLA_B, HLA_C)
+
+write_csv(hla_classI, file.path(out_dir, "arcasHLA_classI_for_CD8_TCR.csv"))
+
+hla_classI %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)
+```
+
+# Genotype heatmap
+
+```{r}
+# Better genotype table figure
+
+hla_plot_table <- hla_df %>%
+  mutate(
+    Genotype_short = Genotype %>%
+      str_replace_all(":01(?=\\s|$| /)", "") %>%
+      str_replace_all(":01(?= /)", "")
+  ) %>%
+  select(Sample, Gene, Genotype_short) %>%
+  pivot_wider(
+    names_from = Gene,
+    values_from = Genotype_short,
+    names_prefix = "HLA_"
+  ) %>%
+  arrange(Sample)
+
+hla_plot_table %>%
+  kable(
+    caption = "Arcas-HLA genotype calls by sample",
+    align = "l"
+  ) %>%
+  kable_styling(
+    full_width = TRUE,
+    bootstrap_options = c("striped", "hover", "condensed")
+  ) %>%
+  scroll_box(width = "100%", height = "500px")
+
+write_csv(
+  hla_plot_table,
+  file.path(out_dir, "arcasHLA_genotype_table_for_report.csv")
+)
+```
+
+# Allele frequency summary
+
+```{r}
+hla_long <- hla_df %>%
+  pivot_longer(
+    cols = c(Allele1, Allele2),
+    names_to = "Allele_Copy",
+    values_to = "Allele"
+  ) %>%
+  filter(!is.na(Allele), Allele != "")
+
+allele_counts <- hla_long %>%
+  count(Gene, Allele, sort = TRUE)
+
+write_csv(allele_counts, file.path(out_dir, "arcasHLA_allele_counts.csv"))
+
+allele_counts %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)
+```
+
+```{r}
+p_counts <- ggplot(
+  allele_counts,
+  aes(x = reorder(Allele, n), y = n)
+) +
+  geom_col() +
+  coord_flip() +
+  facet_wrap(~ Gene, scales = "free_y") +
+  theme_bw() +
+  labs(
+    title = "HLA allele counts across samples",
+    x = "Allele",
+    y = "Count"
+  )
+
+p_counts
+
+ggsave(
+  file.path(out_dir, "arcasHLA_allele_counts.png"),
+  p_counts,
+  width = 12,
+  height = 8,
+  dpi = 300
+)
+
+ggsave(
+  file.path(out_dir, "arcasHLA_allele_counts.pdf"),
+  p_counts,
+  width = 12,
+  height = 8
+)
+```
+
+# Two-field simplified HLA calls
+
+For downstream TCR restriction matching, two-field resolution is often easier to use. For example, `A*02:01:01` becomes `A*02:01`.
+
+```{r}
+simplify_hla <- function(x) {
+  ifelse(
+    is.na(x),
+    NA,
+    str_extract(x, "^[A-Z0-9]+\\*\\d+:\\d+")
+  )
+}
+
+hla_simple <- hla_df %>%
+  mutate(
+    Allele1_2field = simplify_hla(Allele1),
+    Allele2_2field = simplify_hla(Allele2),
+    Genotype_2field = paste(Allele1_2field, Allele2_2field, sep = " / ")
+  )
+
+hla_simple_wide <- hla_simple %>%
+  select(Sample, Gene, Genotype_2field) %>%
+  pivot_wider(
+    names_from = Gene,
+    values_from = Genotype_2field,
+    names_prefix = "HLA_"
+  ) %>%
+  arrange(Sample)
+
+write_csv(hla_simple_wide, file.path(out_dir, "arcasHLA_genotype_2field_wide.csv"))
+
+hla_simple_wide %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)
+```
+
+# T22 HLA-A call inspection
+
+One sample, `Manthiram_T22_S44`, was called as:
+
+```{r}
+hla_wide %>%
+  filter(Sample == "Manthiram_T22_S44") %>%
+  select(Sample, HLA_A, HLA_B, HLA_C) %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)
+```
+
+The HLA-A call includes `A*02:844`, which is less common than alleles such as `A*02:01`. Review of the Arcas-HLA genotype log showed that the sample had strong HLA-A read support and that multiple closely related A*02 alleles had similar support. The most important biological interpretation for the SARS-CoV-2 TCR analysis is that this sample carries an HLA-A*02 family allele and an HLA-A*31 allele.
+
+# Summary
+
+The Arcas-HLA run successfully generated complete HLA calls for all samples across the requested loci. The Class I calls, especially HLA-A, HLA-B, and HLA-C, are the most important results for interpreting SARS-CoV-2-responsive CD8 TCRs. These HLA calls can be used to evaluate whether published TCR-HLA restrictions are compatible with each subject's inferred HLA genotype.
+
+Key output files generated by this report:
+
+```{r}
+list.files(out_dir, full.names = FALSE)
+```
+
